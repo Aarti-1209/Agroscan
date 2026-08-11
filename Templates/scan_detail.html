@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Scan Details</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0faf4; min-height: 100vh; display: flex; }
+    .sidebar {
+      width: 64px; background: #0F6E56; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+    }
+    .sidebar-logo { font-size: 24px; margin-bottom: 24px; }
+    .nav-item {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px; cursor: pointer; text-decoration: none;
+      color: rgba(255,255,255,0.6); font-size: 20px;
+      transition: all 0.2s; position: relative;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.15); color: white; }
+    .nav-item.active { background: rgba(255,255,255,0.25); color: white; }
+    .nav-tooltip {
+      position: absolute; left: 54px; background: #0a3d2b;
+      color: white; font-size: 11px; padding: 4px 10px;
+      border-radius: 6px; white-space: nowrap; display: none; z-index: 200;
+    }
+    .nav-item:hover .nav-tooltip { display: block; }
+    .sidebar-bottom { margin-top: auto; }
+    .main { margin-left: 64px; flex: 1; padding: 2rem; }
+
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #1D9E75; text-decoration: none; font-size: 13px; font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .detail-card {
+      background: white; border-radius: 18px; overflow: hidden;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.08); margin-bottom: 1.5rem;
+    }
+    .detail-img-wrap { position: relative; width: 100%; height: 420px; background: #E1F5EE; }
+    .detail-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    .severity-badge {
+      position: absolute; top: 16px; right: 16px;
+      padding: 6px 14px; border-radius: 20px; font-size: 12px;
+      font-weight: 700; color: white; text-transform: capitalize;
+    }
+    .severity-low, .severity-healthy { background: #22C55E; }
+    .severity-medium, .severity-moderate { background: #F59E0B; }
+    .severity-high, .severity-severe { background: #DC2626; }
+    .severity-unknown { background: #9CA3AF; }
+
+    .detail-body { padding: 1.75rem; }
+    .detail-title { font-size: 24px; font-weight: 800; color: #111827; margin-bottom: 6px; }
+    .detail-meta { font-size: 13px; color: #6B7280; margin-bottom: 4px; }
+    .confidence-row {
+      display: flex; align-items: center; gap: 8px; margin: 14px 0;
+    }
+    .confidence-bar-track {
+      flex: 1; height: 8px; background: #E5E7EB; border-radius: 8px; overflow: hidden;
+    }
+    .confidence-bar-fill { height: 100%; background: #1D9E75; border-radius: 8px; }
+    .confidence-text { font-size: 13px; font-weight: 700; color: #1D9E75; white-space: nowrap; }
+
+    .section { margin-top: 1.5rem; }
+    .section-heading {
+      font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .section-text { font-size: 14px; color: #374151; line-height: 1.6; }
+    .treatment-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .treatment-list li {
+      font-size: 14px; color: #374151; background: #F0FAF4;
+      border-left: 3px solid #1D9E75; padding: 10px 14px; border-radius: 0 8px 8px 0;
+    }
+
+    .top3-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    .top3-chip {
+      background: #F3F4F6; border-radius: 10px; padding: 8px 14px;
+      font-size: 12px; color: #374151;
+    }
+    .top3-chip b { color: #111827; }
+
+    .action-row { display: flex; gap: 10px; margin-top: 1.75rem; }
+    .action-btn {
+      flex: 1; text-align: center; padding: 12px; border-radius: 10px;
+      font-size: 14px; font-weight: 700; text-decoration: none; cursor: pointer; border: none;
+    }
+    .action-btn.primary { background: #1D9E75; color: white; }
+    .action-btn.primary:hover { background: #0F6E56; }
+    .action-btn.secondary { background: #FEF2F2; color: #DC2626; }
+    .action-btn.secondary:hover { background: #FEE2E2; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">🌿</div>
+  <a href="/dashboard" class="nav-item">🏠<span class="nav-tooltip">Dashboard</span></a>
+  <a href="/scan" class="nav-item">📸<span class="nav-tooltip">{{ t.new_scan }}</span></a>
+  <a href="/history" class="nav-item active">📊<span class="nav-tooltip">{{ t.scan_history }}</span></a>
+  <a href="/shops" class="nav-item">🗺️<span class="nav-tooltip">Nearby Shops</span></a>
+  <a href="/weather" class="nav-item">🌦️<span class="nav-tooltip">Weather Alert</span></a>
+  <a href="/chatbot" class="nav-item">🤖<span class="nav-tooltip">AI Chatbot</span></a>
+  <div class="sidebar-bottom">
+    <a href="/logout" class="nav-item">🚪<span class="nav-tooltip">{{ t.logout }}</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <a href="/history" class="back-link">← Back to Scan History</a>
+
+  <div class="detail-card">
+    <div class="detail-img-wrap">
+      {% if scan.image_path %}
+        <img src="/{{ scan.image_path }}" alt="{{ scan.disease_name }}" onerror="this.style.background='#9FE1CB'">
+      {% endif %}
+      <span class="severity-badge severity-{{ (scan.severity or 'unknown')|lower }}">
+        {{ scan.severity or 'Unknown' }}
+      </span>
+    </div>
+
+    <div class="detail-body">
+      <div class="detail-title">{{ scan.disease_name }}</div>
+      <div class="detail-meta">🕒 Scanned on {{ scan.created_at.strftime('%d %b %Y, %I:%M %p') if scan.created_at else '' }}</div>
+
+      <div class="confidence-row">
+        <div class="confidence-bar-track">
+          <div class="confidence-bar-fill" style="width: {{ scan.confidence }}%;"></div>
+        </div>
+        <div class="confidence-text">{{ scan.confidence }}% confidence</div>
+      </div>
+
+      {% if info %}
+        {% if info.symptoms %}
+        <div class="section">
+          <div class="section-heading">🩺 Symptoms</div>
+          <div class="section-text">{{ info.symptoms }}</div>
+        </div>
+        {% endif %}
+
+        {% if info.treatment %}
+        <div class="section">
+          <div class="section-heading">💊 Treatment</div>
+          <ul class="treatment-list">
+            {% for step in info.treatment %}
+            <li>{{ step }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if info.prevention %}
+        <div class="section">
+          <div class="section-heading">🛡️ Prevention</div>
+          <div class="section-text">{{ info.prevention }}</div>
+        </div>
+        {% endif %}
+      {% endif %}
+
+      <div class="action-row">
+        <a href="/shops" class="action-btn primary">🗺️ Find Treatment Nearby</a>
+        <button class="action-btn secondary" onclick="deleteThisScan({{ scan.id }})">🗑️ Delete Scan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function deleteThisScan(scanId) {
+  if (!confirm('Delete this scan record? This cannot be undone.')) return;
+  fetch('/scan/' + scanId + '/delete', { method: 'POST' })
+    .then(function(res) {
+      if (res.ok) {
+        window.location.href = '/history';
+      } else {
+        alert('Delete failed. Try again.');
+      }
+    })
+    .catch(function(err) {
+      alert('Something went wrong.');
+      console.error(err);
+    });
+}
+</script>
+</body>
+</html>

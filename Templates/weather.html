@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Weather Alerts</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0faf4; min-height: 100vh; display: flex; }
+    .sidebar {
+      width: 64px; background: #0F6E56; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+    }
+    .sidebar-logo { font-size: 24px; margin-bottom: 24px; }
+    .nav-item {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px; cursor: pointer; text-decoration: none;
+      color: rgba(255,255,255,0.6); font-size: 20px;
+      transition: all 0.2s; position: relative;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.15); color: white; }
+    .nav-item.active { background: rgba(255,255,255,0.25); color: white; }
+    .nav-tooltip {
+      position: absolute; left: 54px; background: #0a3d2b;
+      color: white; font-size: 11px; padding: 4px 10px;
+      border-radius: 6px; white-space: nowrap; display: none; z-index: 200;
+    }
+    .nav-item:hover .nav-tooltip { display: block; }
+    .sidebar-bottom { margin-top: auto; }
+    .main { margin-left: 64px; flex: 1; padding: 1.5rem; display: flex; gap: 1.5rem; height: 100vh; overflow: hidden; }
+    .left-panel { width: 380px; flex-shrink: 0; overflow-y: auto; padding-right: 8px; }
+    .right-panel { flex: 1; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; }
+    .page-title { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #6B7280; margin-bottom: 1rem; }
+    .tip-box {
+      background: #E1F5EE; border-left: 3px solid #1D9E75;
+      border-radius: 0 10px 10px 0; padding: 10px 14px;
+      font-size: 12px; color: #085041; margin-bottom: 1rem;
+    }
+    .search-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+    .search-row input {
+      flex: 1; padding: 10px 12px; border: 1.5px solid #D1D5DB;
+      border-radius: 10px; font-size: 14px; outline: none;
+    }
+    .search-row input:focus { border-color: #1D9E75; }
+    .search-row button {
+      background: #1D9E75; color: white; border: none;
+      padding: 10px 14px; border-radius: 10px; font-size: 13px;
+      cursor: pointer; font-weight: 500;
+    }
+    .search-row button.dark { background: #085041; }
+    .nearby-locations { margin-bottom: 1rem; }
+    .nearby-title { font-size: 12px; color: #6B7280; margin-bottom: 6px; font-weight: 500; }
+    .nearby-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nearby-btn {
+      background: white; border: 1.5px solid #D1D5DB; color: #374151;
+      padding: 5px 10px; border-radius: 20px; font-size: 11px;
+      cursor: pointer; font-weight: 500; transition: all 0.2s;
+    }
+    .nearby-btn:hover { background: #E1F5EE; border-color: #1D9E75; color: #085041; }
+    .weather-card {
+      background: white; border-radius: 14px; padding: 1.25rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1rem; display: none;
+    }
+    .weather-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .weather-city { font-size: 16px; font-weight: 600; color: #111827; }
+    .weather-date { font-size: 12px; color: #6B7280; }
+    .weather-main { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .weather-icon { font-size: 48px; }
+    .weather-temp { font-size: 42px; font-weight: 700; color: #1D9E75; }
+    .weather-desc { font-size: 13px; color: #6B7280; margin-top: 4px; }
+    .weather-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .weather-stat { background: #f9fafb; border-radius: 10px; padding: 10px; text-align: center; }
+    .weather-stat-icon { font-size: 18px; margin-bottom: 4px; }
+    .weather-stat-val { font-size: 15px; font-weight: 600; color: #111827; }
+    .weather-stat-label { font-size: 11px; color: #6B7280; margin-top: 2px; }
+    .section-title { font-size: 15px; font-weight: 600; color: #111827; margin-bottom: 10px; }
+    .risk-card {
+      border-radius: 12px; padding: 12px 14px;
+      margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;
+    }
+    .risk-high { background: #FEE2E2; border-left: 4px solid #DC2626; }
+    .risk-medium { background: #FEF3C7; border-left: 4px solid #D97706; }
+    .risk-low { background: #D1FAE5; border-left: 4px solid #059669; }
+    .risk-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+    .risk-info { flex: 1; }
+    .risk-disease { font-size: 13px; font-weight: 600; color: #111827; }
+    .risk-reason { font-size: 11px; color: #6B7280; margin-top: 2px; }
+    .risk-crops { font-size: 11px; color: #1D9E75; margin-top: 3px; font-weight: 500; }
+    .risk-badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+    .badge-high { background: #DC2626; color: white; }
+    .badge-medium { background: #D97706; color: white; }
+    .badge-low { background: #059669; color: white; }
+    .tip-card { background: white; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); overflow: hidden; }
+    .tip-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; justify-content: space-between; }
+    .tip-header-left { display: flex; align-items: center; gap: 10px; }
+    .tip-icon { font-size: 22px; }
+    .tip-title { font-size: 13px; font-weight: 600; color: #111827; }
+    .tip-arrow { font-size: 11px; color: #6B7280; transition: transform 0.2s; }
+    .tip-arrow.open { transform: rotate(180deg); }
+    .tip-body { padding: 0 14px 12px; display: none; }
+    .tip-body.open { display: block; }
+    .tip-list { list-style: none; }
+    .tip-list li { padding: 6px 0; font-size: 12px; color: #374151; border-bottom: 1px solid #F3F4F6; display: flex; gap: 6px; }
+    .tip-list li:last-child { border-bottom: none; }
+    .tip-list li::before { content: "✅"; flex-shrink: 0; }
+    .tip-high { border-top: 3px solid #DC2626; }
+    .tip-medium { border-top: 3px solid #D97706; }
+    .tip-low { border-top: 3px solid #059669; }
+    .forecast-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 1rem; }
+    .forecast-card { background: white; border-radius: 10px; padding: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); text-align: center; min-width: 72px; flex-shrink: 0; }
+    .forecast-time { font-size: 10px; color: #6B7280; margin-bottom: 3px; }
+    .forecast-icon { font-size: 20px; margin-bottom: 3px; }
+    .forecast-temp { font-size: 13px; font-weight: 600; color: #111827; }
+    .forecast-rain { font-size: 10px; color: #3B82F6; margin-top: 2px; }
+    .loading-box { text-align: center; padding: 2rem; color: #6B7280; font-size: 13px; }
+    .error-box { background: #FEE2E2; color: #DC2626; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 1rem; }
+    #map { flex: 1; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); z-index: 1; min-height: 300px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">🌿</div>
+  <a href="/dashboard" class="nav-item">🏠<span class="nav-tooltip">{{ t.dashboard_title }}</span></a>
+  <a href="/scan" class="nav-item">📸<span class="nav-tooltip">{{ t.new_scan }}</span></a>
+  <a href="/dashboard" class="nav-item">📊<span class="nav-tooltip">{{ t.scan_history }}</span></a>
+  <a href="/shops" class="nav-item">🗺️<span class="nav-tooltip">Nearby Shops</span></a>
+  <a href="/weather" class="nav-item active">🌦️<span class="nav-tooltip">Weather Alert</span></a>
+  <a href="/chatbot" class="nav-item">🤖<span class="nav-tooltip">AI Chatbot</span></a>
+  <div class="sidebar-bottom">
+    <a href="/logout" class="nav-item">🚪<span class="nav-tooltip">{{ t.logout }}</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="page-title">🌦️ Weather & Disease Risk</div>
+    <div class="page-sub">Check weather and crop disease prevention tips</div>
+
+    <div class="tip-box">
+      🌾 Click anywhere on map to check weather for that location!
+    </div>
+
+    <div class="search-row">
+      <input type="text" id="locationInput"
+        placeholder="Enter city (e.g. Gurugram, Jaipur...)"
+        onkeydown="if(event.key==='Enter') searchWeather()">
+      <button onclick="searchWeather()">🔍</button>
+      <button onclick="getGPSWeather()" class="dark">📍</button>
+    </div>
+
+    <!-- Nearby Locations -->
+    <div class="nearby-locations">
+      <div class="nearby-title">🏙️ Quick Search Nearby Cities:</div>
+      <div class="nearby-grid" id="nearbyGrid">
+        <button class="nearby-btn" onclick="searchCity('Delhi')">Delhi</button>
+        <button class="nearby-btn" onclick="searchCity('Mumbai')">Mumbai</button>
+        <button class="nearby-btn" onclick="searchCity('Jaipur')">Jaipur</button>
+        <button class="nearby-btn" onclick="searchCity('Lucknow')">Lucknow</button>
+        <button class="nearby-btn" onclick="searchCity('Chandigarh')">Chandigarh</button>
+        <button class="nearby-btn" onclick="searchCity('Bhopal')">Bhopal</button>
+      </div>
+    </div>
+
+    <div id="loadingBox" class="loading-box hidden">⏳ Getting weather data...</div>
+    <div id="errorBox" class="error-box hidden"></div>
+
+    <!-- Weather Card -->
+    <div class="weather-card" id="weatherCard">
+      <div class="weather-header">
+        <div class="weather-city" id="cityName">--</div>
+        <div class="weather-date" id="weatherDate">--</div>
+      </div>
+      <div class="weather-main">
+        <div class="weather-icon" id="weatherIcon">🌤️</div>
+        <div>
+          <div class="weather-temp" id="weatherTemp">--°C</div>
+          <div class="weather-desc" id="weatherDesc">--</div>
+        </div>
+      </div>
+      <div class="weather-grid">
+        <div class="weather-stat">
+          <div class="weather-stat-icon">💧</div>
+          <div class="weather-stat-val" id="humidity">--%</div>
+          <div class="weather-stat-label">Humidity</div>
+        </div>
+        <div class="weather-stat">
+          <div class="weather-stat-icon">💨</div>
+          <div class="weather-stat-val" id="windSpeed">--</div>
+          <div class="weather-stat-label">Wind km/h</div>
+        </div>
+        <div class="weather-stat">
+          <div class="weather-stat-icon">☁️</div>
+          <div class="weather-stat-val" id="clouds">--%</div>
+          <div class="weather-stat-label">Clouds</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forecast -->
+    <div id="forecastSection" class="hidden">
+      <div class="section-title">📅 24-Hour Forecast</div>
+      <div class="forecast-grid" id="forecastGrid"></div>
+    </div>
+
+    <!-- Risk Alerts -->
+    <div id="riskSection" class="hidden">
+      <div class="section-title">⚠️ Disease Risk Alerts</div>
+      <div id="riskList"></div>
+    </div>
+
+    <!-- Tips -->
+    <div id="tipsSection" class="hidden">
+      <div class="section-title">💊 Prevention Tips</div>
+      <div id="tipsList"></div>
+    </div>
+  </div>
+
+  <!-- Right Panel — Map -->
+  <div class="right-panel">
+    <div id="map"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var map = L.map('map').setView([20.5937, 78.9629], 5);
+var weatherMarker = null;
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Click on map to get weather
+map.on('click', function(e) {
+  var lat = e.latlng.lat;
+  var lng = e.latlng.lng;
+  setMapMarker(lat, lng, 'Selected Location');
+  fetchWeather(lat, lng);
+});
+
+function setMapMarker(lat, lng, title) {
+  if (weatherMarker) map.removeLayer(weatherMarker);
+  weatherMarker = L.marker([lat, lng]).addTo(map).bindPopup('🌦️ ' + title).openPopup();
+  map.setView([lat, lng], 12);
+}
+
+function getWeatherIcon(condition) {
+  var icons = { 'Clear': '☀️', 'Clouds': '☁️', 'Rain': '🌧️', 'Drizzle': '🌦️', 'Thunderstorm': '⛈️', 'Snow': '❄️', 'Mist': '🌫️', 'Fog': '🌫️', 'Haze': '🌫️' };
+  return icons[condition] || '🌤️';
+}
+
+function searchCity(city) {
+  document.getElementById('locationInput').value = city;
+  searchWeather();
+}
+
+function searchWeather() {
+  var loc = document.getElementById('locationInput').value.trim();
+  if (!loc) { alert('Please enter a location!'); return; }
+  showLoading();
+  fetch('/geocode?q=' + encodeURIComponent(loc))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.length > 0) {
+        var lat = parseFloat(data[0].lat);
+        var lng = parseFloat(data[0].lon);
+        setMapMarker(lat, lng, loc);
+
+        // Add nearby city buttons
+        updateNearbyButtons(lat, lng, loc);
+
+        fetchWeather(lat, lng);
+      } else {
+        showError('Location not found.');
+      }
+    })
+    .catch(function() { showError('Search failed. Try again.'); });
+}
+
+function getGPSWeather() {
+  if (!navigator.geolocation) { alert('Not supported.'); return; }
+  showLoading();
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      setMapMarker(pos.coords.latitude, pos.coords.longitude, 'Your Location');
+      fetchWeather(pos.coords.latitude, pos.coords.longitude);
+    },
+    function() { showError('Location denied. Enter manually.'); }
+  );
+}
+
+function updateNearbyButtons(lat, lng, currentCity) {
+  var cities = [
+    {name: 'Delhi', lat: 28.6, lng: 77.2},
+    {name: 'Mumbai', lat: 19.0, lng: 72.8},
+    {name: 'Jaipur', lat: 26.9, lng: 75.8},
+    {name: 'Lucknow', lat: 26.8, lng: 80.9},
+    {name: 'Chandigarh', lat: 30.7, lng: 76.7},
+    {name: 'Bhopal', lat: 23.2, lng: 77.4},
+    {name: 'Pune', lat: 18.5, lng: 73.8},
+    {name: 'Hyderabad', lat: 17.4, lng: 78.5}
+  ];
+
+  var grid = document.getElementById('nearbyGrid');
+  grid.innerHTML = '';
+  cities.forEach(function(city) {
+    if (city.name.toLowerCase() !== currentCity.toLowerCase()) {
+      var btn = document.createElement('button');
+      btn.className = 'nearby-btn';
+      btn.textContent = city.name;
+      btn.onclick = function() { searchCity(city.name); };
+      grid.appendChild(btn);
+    }
+  });
+}
+
+function fetchWeather(lat, lng) {
+  showLoading();
+  fetch('/get-weather?lat=' + lat + '&lng=' + lng)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { showError('Weather unavailable. Try again.'); return; }
+      hideLoading();
+      displayWeather(data.weather);
+      displayForecast(data.forecast);
+      displayRisks(data.risks);
+      displayTips(data.tips);
+
+      // Update map marker with weather info
+      if (weatherMarker) {
+        var w = data.weather;
+        weatherMarker.setPopupContent(
+          '<strong>🌦️ ' + w.name + '</strong><br>' +
+          getWeatherIcon(w.weather[0].main) + ' ' + Math.round(w.main.temp) + '°C<br>' +
+          w.weather[0].description
+        ).openPopup();
+      }
+    })
+    .catch(function() { showError('Failed. Try again.'); });
+}
+
+function displayWeather(w) {
+  document.getElementById('weatherCard').style.display = 'block';
+  document.getElementById('cityName').textContent = w.name + ', ' + w.sys.country;
+  document.getElementById('weatherDate').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('weatherIcon').textContent = getWeatherIcon(w.weather[0].main);
+  document.getElementById('weatherTemp').textContent = Math.round(w.main.temp) + '°C';
+  document.getElementById('weatherDesc').textContent = w.weather[0].description.charAt(0).toUpperCase() + w.weather[0].description.slice(1);
+  document.getElementById('humidity').textContent = w.main.humidity + '%';
+  document.getElementById('windSpeed').textContent = Math.round(w.wind.speed * 3.6);
+  document.getElementById('clouds').textContent = w.clouds.all + '%';
+}
+
+function displayForecast(forecast) {
+  if (!forecast || !forecast.list) return;
+  var section = document.getElementById('forecastSection');
+  var grid = document.getElementById('forecastGrid');
+  section.classList.remove('hidden');
+  grid.innerHTML = '';
+  forecast.list.forEach(function(item) {
+    var time = new Date(item.dt * 1000).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+    var rain = item.rain ? (item.rain['3h'] || 0) : 0;
+    var card = document.createElement('div');
+    card.className = 'forecast-card';
+    card.innerHTML = '<div class="forecast-time">' + time + '</div><div class="forecast-icon">' + getWeatherIcon(item.weather[0].main) + '</div><div class="forecast-temp">' + Math.round(item.main.temp) + '°C</div>' + (rain > 0 ? '<div class="forecast-rain">🌧️ ' + rain.toFixed(1) + 'mm</div>' : '');
+    grid.appendChild(card);
+  });
+}
+
+function displayRisks(risks) {
+  var section = document.getElementById('riskSection');
+  var list = document.getElementById('riskList');
+  section.classList.remove('hidden');
+  list.innerHTML = '';
+  risks.forEach(function(risk) {
+    var cls = risk.level === 'High' ? 'risk-high' : risk.level === 'Medium' ? 'risk-medium' : 'risk-low';
+    var badge = risk.level === 'High' ? 'badge-high' : risk.level === 'Medium' ? 'badge-medium' : 'badge-low';
+    var icon = risk.level === 'High' ? '🔴' : risk.level === 'Medium' ? '🟡' : '🟢';
+    var div = document.createElement('div');
+    div.className = 'risk-card ' + cls;
+    div.innerHTML = '<div class="risk-icon">' + icon + '</div><div class="risk-info"><div class="risk-disease">' + risk.disease + '</div><div class="risk-reason">' + risk.reason + '</div><div class="risk-crops">🌾 ' + risk.crops + '</div></div><span class="risk-badge ' + badge + '">' + risk.level + '</span>';
+    list.appendChild(div);
+  });
+}
+
+function displayTips(tips) {
+  var section = document.getElementById('tipsSection');
+  var list = document.getElementById('tipsList');
+  section.classList.remove('hidden');
+  list.innerHTML = '';
+  tips.forEach(function(tip, idx) {
+    var borderClass = tip.level === 'High' ? 'tip-high' : tip.level === 'Medium' ? 'tip-medium' : 'tip-low';
+    var card = document.createElement('div');
+    card.className = 'tip-card ' + borderClass;
+    var actionsHtml = tip.actions.map(function(a) { return '<li>' + a + '</li>'; }).join('');
+    card.innerHTML = '<div class="tip-header" onclick="toggleTip(' + idx + ')"><div class="tip-header-left"><span class="tip-icon">' + tip.icon + '</span><span class="tip-title">' + tip.title + '</span></div><span class="tip-arrow" id="arrow' + idx + '">▼</span></div><div class="tip-body" id="tipBody' + idx + '"><ul class="tip-list">' + actionsHtml + '</ul></div>';
+    list.appendChild(card);
+  });
+  if (tips.length > 0) toggleTip(0);
+}
+
+function toggleTip(idx) {
+  var body = document.getElementById('tipBody' + idx);
+  var arrow = document.getElementById('arrow' + idx);
+  if (body.classList.contains('open')) { body.classList.remove('open'); arrow.classList.remove('open'); }
+  else { body.classList.add('open'); arrow.classList.add('open'); }
+}
+
+function showLoading() {
+  document.getElementById('loadingBox').classList.remove('hidden');
+  document.getElementById('errorBox').classList.add('hidden');
+  document.getElementById('weatherCard').style.display = 'none';
+  document.getElementById('forecastSection').classList.add('hidden');
+  document.getElementById('riskSection').classList.add('hidden');
+  document.getElementById('tipsSection').classList.add('hidden');
+}
+
+function hideLoading() { document.getElementById('loadingBox').classList.add('hidden'); }
+
+function showError(msg) {
+  document.getElementById('loadingBox').classList.add('hidden');
+  var box = document.getElementById('errorBox');
+  box.classList.remove('hidden');
+  box.textContent = '❌ ' + msg;
+}
+</script>
+</body>
+</html>

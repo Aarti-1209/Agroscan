@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Scan History</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0faf4; min-height: 100vh; display: flex; }
+    .sidebar {
+      width: 64px; background: #0F6E56; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+    }
+    .sidebar-logo { font-size: 24px; margin-bottom: 24px; }
+    .nav-item {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px; cursor: pointer; text-decoration: none;
+      color: rgba(255,255,255,0.6); font-size: 20px;
+      transition: all 0.2s; position: relative;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.15); color: white; }
+    .nav-item.active { background: rgba(255,255,255,0.25); color: white; }
+    .nav-tooltip {
+      position: absolute; left: 54px; background: #0a3d2b;
+      color: white; font-size: 11px; padding: 4px 10px;
+      border-radius: 6px; white-space: nowrap; display: none; z-index: 200;
+    }
+    .nav-item:hover .nav-tooltip { display: block; }
+    .sidebar-bottom { margin-top: auto; }
+    .main { margin-left: 64px; flex: 1; padding: 2rem; }
+    .page-title { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .page-sub { font-size: 14px; color: #6B7280; margin-bottom: 1.5rem; }
+
+    .filter-row { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .filter-chip {
+      background: white; color: #374151; border: 1.5px solid #D1D5DB;
+      padding: 6px 14px; border-radius: 20px; font-size: 12px;
+      cursor: pointer; font-weight: 500; transition: all 0.2s;
+    }
+    .filter-chip:hover { background: #E1F5EE; border-color: #1D9E75; color: #085041; }
+    .filter-chip.active { background: #1D9E75; color: white; border-color: #1D9E75; }
+
+    .empty-state {
+      background: white; border-radius: 16px; padding: 4rem 2rem;
+      text-align: center; color: #9CA3AF; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .empty-icon { font-size: 3.5rem; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; font-weight: 500; margin-bottom: 4px; color: #6B7280; }
+    .empty-sub { font-size: 13px; margin-bottom: 20px; }
+    .empty-cta {
+      display: inline-block; background: #1D9E75; color: white;
+      padding: 10px 20px; border-radius: 10px; text-decoration: none;
+      font-size: 14px; font-weight: 600;
+    }
+    .empty-cta:hover { background: #0F6E56; }
+
+    .scan-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .scan-card {
+      background: white; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.07); transition: transform 0.15s;
+      display: flex; flex-direction: column;
+    }
+    .scan-card:hover { transform: translateY(-3px); }
+    .scan-img-wrap { position: relative; width: 100%; height: 170px; background: #E1F5EE; }
+    .scan-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    .severity-badge {
+      position: absolute; top: 10px; right: 10px;
+      padding: 4px 10px; border-radius: 20px; font-size: 11px;
+      font-weight: 700; color: white; text-transform: capitalize;
+    }
+    .severity-low, .severity-healthy { background: #22C55E; }
+    .severity-medium, .severity-moderate { background: #F59E0B; }
+    .severity-high, .severity-severe { background: #DC2626; }
+    .severity-unknown { background: #9CA3AF; }
+
+    .scan-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .scan-disease { font-size: 15px; font-weight: 700; color: #111827; }
+    .scan-confidence { font-size: 12px; color: #1D9E75; font-weight: 600; }
+    .scan-date { font-size: 11px; color: #9CA3AF; margin-top: auto; padding-top: 6px; }
+
+    .scan-actions { display: flex; gap: 8px; padding: 0 14px 14px; }
+    .scan-btn {
+      flex: 1; text-align: center; padding: 8px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; border: none;
+    }
+    .scan-btn.view { background: #E1F5EE; color: #085041; }
+    .scan-btn.view:hover { background: #C8ECDF; }
+    .scan-btn.delete { background: #FEF2F2; color: #DC2626; }
+    .scan-btn.delete:hover { background: #FEE2E2; }
+
+    .stats-row { display: flex; gap: 14px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 14px 20px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06); min-width: 120px;
+    }
+    .stat-number { font-size: 22px; font-weight: 800; color: #0F6E56; }
+    .stat-label { font-size: 12px; color: #6B7280; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">🌿</div>
+  <a href="/dashboard" class="nav-item">🏠<span class="nav-tooltip">{{ t.dashboard_title }}</span></a>
+  <a href="/scan" class="nav-item">📸<span class="nav-tooltip">{{ t.new_scan }}</span></a>
+  <a href="/history" class="nav-item active">📊<span class="nav-tooltip">{{ t.scan_history }}</span></a>
+  <a href="/shops" class="nav-item">🗺️<span class="nav-tooltip">Nearby Shops</span></a>
+  <a href="/weather" class="nav-item">🌦️<span class="nav-tooltip">Weather Alert</span></a>
+  <a href="/chatbot" class="nav-item">🤖<span class="nav-tooltip">AI Chatbot</span></a>
+  <div class="sidebar-bottom">
+    <a href="/logout" class="nav-item">🚪<span class="nav-tooltip">{{ t.logout }}</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-title">{{ t.scan_history }}</div>
+  <div class="page-sub">Your past crop disease scans, {{ user.username if user else '' }}</div>
+
+  {% if scans and scans|length > 0 %}
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-number">{{ scans|length }}</div>
+        <div class="stat-label">Total Scans</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ scans|selectattr('severity', 'in', ['high', 'severe'])|list|length }}</div>
+        <div class="stat-label">High Severity</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ scans[0].created_at.strftime('%d %b') if scans[0].created_at else '-' }}</div>
+        <div class="stat-label">Last Scan</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="filterScans('all', this)">All</button>
+      <button class="filter-chip" onclick="filterScans('high', this)">🔴 High Severity</button>
+      <button class="filter-chip" onclick="filterScans('medium', this)">🟠 Medium</button>
+      <button class="filter-chip" onclick="filterScans('low', this)">🟢 Low / Healthy</button>
+    </div>
+
+    <div class="scan-grid" id="scanGrid">
+      {% for scan in scans %}
+      <div class="scan-card" data-severity="{{ (scan.severity or 'unknown')|lower }}">
+        <div class="scan-img-wrap">
+          {% if scan.image_url %}
+            <img src="{{ scan.image_url }}" alt="{{ scan.disease_name }}">
+          {% endif %}
+          <span class="severity-badge severity-{{ (scan.severity or 'unknown')|lower }}">
+            {{ scan.severity or 'Unknown' }}
+          </span>
+        </div>
+        <div class="scan-body">
+          <div class="scan-disease">{{ scan.disease_name or scan.class_name }}</div>
+          <div class="scan-confidence">🎯 {{ scan.confidence }}% confidence</div>
+          <div class="scan-date">
+            🕒 {{ scan.created_at.strftime('%d %b %Y, %I:%M %p') if scan.created_at else '' }}
+          </div>
+        </div>
+        <div class="scan-actions">
+          <a href="/scan/{{ scan.id }}" class="scan-btn view">👁️ View Details</a>
+          <button class="scan-btn delete" onclick="deleteScan({{ scan.id }})">🗑️ Delete</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <div class="empty-text">No scans yet</div>
+      <div class="empty-sub">Scan your first crop to see disease detection history here</div>
+      <a href="/scan" class="empty-cta">📸 Start New Scan</a>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+function filterScans(type, btn) {
+  document.querySelectorAll('.filter-chip').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+
+  var cards = document.querySelectorAll('.scan-card');
+  cards.forEach(function(card) {
+    var sev = card.getAttribute('data-severity');
+    var show = true;
+    if (type === 'high') show = (sev === 'high' || sev === 'severe');
+    else if (type === 'medium') show = (sev === 'medium' || sev === 'moderate');
+    else if (type === 'low') show = (sev === 'low' || sev === 'healthy');
+    card.style.display = show ? 'flex' : 'none';
+  });
+}
+
+function deleteScan(scanId) {
+  if (!confirm('Delete this scan record? This cannot be undone.')) return;
+
+  fetch('/scan/' + scanId + '/delete', { method: 'POST' })
+    .then(function(res) {
+      if (res.ok) {
+        location.reload();
+      } else {
+        alert('Delete failed. Try again.');
+      }
+    })
+    .catch(function(err) {
+      alert('Something went wrong.');
+      console.error(err);
+    });
+}
+</script>
+</body>
+</html>

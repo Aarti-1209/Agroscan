@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Select Language</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a5c36 0%, #1D9E75 50%, #2d8a4e 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 1.5rem; position: relative; overflow: hidden;
+    }
+    .crop-icons {
+      position: fixed; top: 10px; left: 0; right: 0;
+      font-size: 32px; opacity: 0.12; text-align: center;
+      letter-spacing: 20px; z-index: 0; pointer-events: none;
+    }
+    .logo-section { text-align: center; margin-bottom: 1.5rem; z-index: 1; }
+    .logo { font-size: 56px; }
+    .app-name { font-size: 32px; font-weight: 700; color: white; letter-spacing: 1px; }
+    .tagline { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 4px; }
+    .card {
+      background: rgba(255,255,255,0.97);
+      border-radius: 20px; padding: 1.75rem;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      z-index: 1;
+    }
+    .card h2 { text-align: center; color: #111827; font-size: 16px; margin-bottom: 1.25rem; font-weight: 600; }
+    .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .lang-btn {
+      background: #f9fafb; border: 2px solid #E5E7EB;
+      border-radius: 12px; padding: 14px 10px;
+      text-align: center; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover { border-color: #1D9E75; background: #E1F5EE; transform: translateY(-2px); }
+    .lang-btn.selected { border-color: #1D9E75; background: #E1F5EE; box-shadow: 0 0 0 3px rgba(29,158,117,0.2); }
+    .lang-flag { font-size: 26px; display: block; margin-bottom: 4px; }
+    .lang-name { font-size: 14px; font-weight: 600; color: #111827; display: block; }
+    .lang-native { font-size: 12px; color: #6B7280; display: block; margin-top: 2px; }
+    .continue-btn {
+      background: #1D9E75; color: white; border: none;
+      padding: 14px; border-radius: 10px; font-size: 16px;
+      cursor: pointer; width: 100%; margin-top: 1.25rem;
+      font-weight: 600; letter-spacing: 0.5px;
+      transition: background 0.2s;
+    }
+    .continue-btn:hover { background: #0F6E56; }
+  </style>
+</head>
+<body>
+  <div class="crop-icons">🌾 🌿 🍃 🌱 🌾 🌿 🍃 🌱 🌾 🌿</div>
+
+  <div class="logo-section">
+    <div class="logo">🌿</div>
+    <div class="app-name">AgroScan</div>
+    <div class="tagline">AI-Powered Crop Disease Detection</div>
+  </div>
+
+  <div class="card">
+    <h2>🗣️ Select Your Language</h2>
+    <div class="lang-grid">
+      <div class="lang-btn selected" onclick="selectLang('hi', this)">
+        <span class="lang-flag">🇮🇳</span>
+        <span class="lang-name">Hindi</span>
+        <span class="lang-native">हिंदी</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('en', this)">
+        <span class="lang-flag">🇬🇧</span>
+        <span class="lang-name">English</span>
+        <span class="lang-native">English</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('pa', this)">
+        <span class="lang-flag">🌾</span>
+        <span class="lang-name">Punjabi</span>
+        <span class="lang-native">ਪੰਜਾਬੀ</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('mr', this)">
+        <span class="lang-flag">🏔️</span>
+        <span class="lang-name">Marathi</span>
+        <span class="lang-native">मराठी</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('te', this)">
+        <span class="lang-flag">🌴</span>
+        <span class="lang-name">Telugu</span>
+        <span class="lang-native">తెలుగు</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('ta', this)">
+        <span class="lang-flag">🌺</span>
+        <span class="lang-name">Tamil</span>
+        <span class="lang-native">தமிழ்</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('bn', this)">
+        <span class="lang-flag">🐯</span>
+        <span class="lang-name">Bengali</span>
+        <span class="lang-native">বাংলা</span>
+      </div>
+      <div class="lang-btn" onclick="selectLang('gu', this)">
+        <span class="lang-flag">🦁</span>
+        <span class="lang-name">Gujarati</span>
+        <span class="lang-native">ગુજરાતી</span>
+      </div>
+    </div>
+
+    <form method="POST" action="/set-language">
+      <input type="hidden" name="lang" id="langInput" value="hi">
+      <button type="submit" class="continue-btn">Continue →</button>
+    </form>
+  </div>
+
+  <script>
+    function selectLang(lang, el) {
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('langInput').value = lang;
+    }
+  </script>
+</body>
+</html>

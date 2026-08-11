@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Register</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif; min-height: 100vh;
+      background: linear-gradient(135deg, #0a5c36 0%, #1D9E75 50%, #2d8a4e 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 1.5rem; position: relative;
+    }
+    .crop-icons {
+      position: fixed; top: 10px; left: 0; right: 0;
+      font-size: 32px; opacity: 0.12; text-align: center;
+      letter-spacing: 20px; z-index: 0; pointer-events: none;
+    }
+    .logo-section { text-align: center; margin-bottom: 1.5rem; z-index: 1; }
+    .logo { font-size: 48px; }
+    .app-name { font-size: 28px; font-weight: 700; color: white; }
+    .tagline { font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px; }
+    .card {
+      background: rgba(255,255,255,0.97); border-radius: 20px;
+      padding: 2rem; width: 100%; max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3); z-index: 1;
+    }
+    .card h2 { text-align: center; color: #111827; font-size: 18px; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    label { font-size: 13px; color: #374151; font-weight: 500; display: block; margin-bottom: 4px; }
+    input {
+      width: 100%; padding: 12px; border: 1.5px solid #D1D5DB;
+      border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s;
+    }
+    input:focus { border-color: #1D9E75; }
+    .otp-row { display: flex; gap: 8px; }
+    .otp-row input { flex: 1; }
+    .otp-send-btn {
+      background: #E1F5EE; color: #0F6E56; border: 1.5px solid #1D9E75;
+      padding: 12px 14px; border-radius: 8px; font-size: 13px;
+      cursor: pointer; white-space: nowrap; font-weight: 500;
+    }
+    .otp-send-btn:hover { background: #1D9E75; color: white; }
+    .otp-hint { font-size: 11px; color: #9CA3AF; margin-top: 4px; }
+    .btn {
+      background: #1D9E75; color: white; border: none;
+      padding: 13px; border-radius: 10px; font-size: 15px;
+      cursor: pointer; width: 100%; margin-top: 8px; font-weight: 600;
+    }
+    .btn:hover { background: #0F6E56; }
+    .link { text-align: center; margin-top: 1rem; font-size: 13px; color: #6B7280; }
+    .link a { color: #1D9E75; text-decoration: none; font-weight: 500; }
+    .flash { background: #FEE2E2; color: #DC2626; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 1rem; text-align: center; }
+    .divider { text-align: center; color: #9CA3AF; font-size: 12px; margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <div class="crop-icons">🌾 🌿 🍃 🌱 🌾 🌿 🍃 🌱 🌾 🌿</div>
+
+  <div class="logo-section">
+    <div class="logo">🌿</div>
+    <div class="app-name">{{ t.app_name }}</div>
+    <div class="tagline">{{ t.tagline }}</div>
+  </div>
+
+  <div class="card">
+    <h2>👨‍🌾 {{ t.register_title }}</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          <div class="flash">⚠️ {{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="form-group">
+        <label>{{ t.full_name }}</label>
+        <input type="text" name="name" placeholder="{{ t.name_placeholder }}" required>
+      </div>
+      <div class="form-group">
+        <label>{{ t.phone }}</label>
+        <input type="tel" name="phone" placeholder="{{ t.phone_placeholder }}" required maxlength="10">
+      </div>
+      <div class="form-group">
+        <label>{{ t.password }}</label>
+        <input type="password" name="password" placeholder="{{ t.password_placeholder }}" required>
+      </div>
+      <div class="form-group">
+        <label>{{ t.otp }}</label>
+        <div class="otp-row">
+          <input type="text" name="otp" placeholder="{{ t.otp_placeholder }}" maxlength="6" required>
+          <button type="button" class="otp-send-btn" onclick="sendOTP()">{{ t.send_otp }}</button>
+        </div>
+        <div class="otp-hint" id="otpHint">{{ t.otp_hint }}</div>
+      </div>
+      <button type="submit" class="btn">{{ t.create_account }}</button>
+    </form>
+
+    <div class="divider">— or —</div>
+    <div class="link">{{ t.have_account }} <a href="/login">{{ t.login_link }}</a></div>
+    <div class="link" style="margin-top:8px"><a href="/language">{{ t.change_language }}</a></div>
+  </div>
+
+  <script>
+    function sendOTP() {
+      const phone = document.querySelector('input[name="phone"]').value;
+      if (phone.length !== 10) {
+        alert('Please enter a valid 10-digit phone number!');
+        return;
+      }
+      document.getElementById('otpHint').innerHTML = '{{ t.otp_sent }}';
+      document.getElementById('otpHint').style.color = '#059669';
+    }
+  </script>
+</body>
+</html>

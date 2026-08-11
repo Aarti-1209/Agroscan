@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Scan</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0faf4; min-height: 100vh; display: flex; }
+    .sidebar {
+      width: 64px; background: #0F6E56; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+    }
+    .sidebar-logo { font-size: 24px; margin-bottom: 24px; }
+    .nav-item {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px; cursor: pointer; text-decoration: none;
+      color: rgba(255,255,255,0.6); font-size: 20px;
+      transition: all 0.2s; position: relative;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.15); color: white; }
+    .nav-item.active { background: rgba(255,255,255,0.25); color: white; }
+    .nav-tooltip {
+      position: absolute; left: 54px; background: #0a3d2b;
+      color: white; font-size: 11px; padding: 4px 10px;
+      border-radius: 6px; white-space: nowrap; display: none; z-index: 200;
+    }
+    .nav-item:hover .nav-tooltip { display: block; }
+    .sidebar-bottom { margin-top: auto; }
+    .main { margin-left: 64px; flex: 1; padding: 2rem; display: flex; gap: 2rem; }
+    .left-panel { flex: 1; max-width: 600px; }
+    .right-panel { flex: 1; }
+    .page-title { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .page-sub { font-size: 14px; color: #6B7280; margin-bottom: 1.5rem; }
+    .upload-zone {
+      border: 2px dashed #1D9E75; border-radius: 16px;
+      padding: 3rem; text-align: center; cursor: pointer;
+      background: white; transition: background 0.2s; margin-bottom: 1rem;
+    }
+    .upload-zone:hover { background: #E1F5EE; }
+    .upload-icon { font-size: 3.5rem; margin-bottom: 10px; }
+    .upload-text { font-size: 16px; color: #374151; font-weight: 500; }
+    .upload-hint { font-size: 13px; color: #9CA3AF; margin-top: 6px; }
+    #preview {
+      display: none; width: 100%; border-radius: 16px;
+      margin: 1rem 0; max-height: 350px; object-fit: cover;
+    }
+    .analyze-btn {
+      background: #1D9E75; color: white; border: none;
+      padding: 14px; border-radius: 12px; font-size: 16px;
+      cursor: pointer; width: 100%; display: none;
+      margin-bottom: 1rem; font-weight: 600; transition: background 0.2s;
+    }
+    .analyze-btn:hover { background: #0F6E56; }
+    .loading { text-align: center; padding: 1rem; color: #1D9E75; display: none; font-size: 14px; }
+    .result-card {
+      background: white; border-radius: 16px; padding: 1.5rem;
+      display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .disease-name { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+    .confidence-bar { background: #E5E7EB; border-radius: 10px; height: 12px; margin: 8px 0; }
+    .confidence-fill { background: #1D9E75; height: 12px; border-radius: 10px; transition: width 0.5s; }
+    .severity { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin: 8px 0; }
+    .severity-high { background: #FEE2E2; color: #DC2626; }
+    .severity-medium { background: #FEF3C7; color: #D97706; }
+    .severity-none { background: #D1FAE5; color: #059669; }
+    .severity-unknown { background: #F3F4F6; color: #6B7280; }
+    .section-title { font-weight: 600; color: #374151; margin: 14px 0 8px; font-size: 15px; }
+    .treatment-list { list-style: none; }
+    .treatment-list li { padding: 8px 0; color: #374151; font-size: 14px; border-bottom: 1px solid #F3F4F6; }
+    .treatment-list li::before { content: "✅ "; }
+    .top3-card { background: #F9FAFB; border-radius: 12px; padding: 14px; margin-top: 14px; }
+    .top3-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; color: #374151; }
+    .share-btn { background: #25D366; color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-size: 14px; cursor: pointer; margin-top: 10px; font-weight: 500; }
+    .back-btn { background: transparent; color: #1D9E75; border: 1.5px solid #1D9E75; padding: 12px; border-radius: 10px; width: 100%; font-size: 14px; cursor: pointer; margin-top: 8px; text-decoration: none; display: block; text-align: center; }
+    .tips-card { background: #E1F5EE; border-radius: 16px; padding: 1.5rem; height: fit-content; }
+    .tips-title { font-size: 18px; font-weight: 600; color: #085041; margin-bottom: 1rem; }
+    .tip-item { display: flex; gap: 10px; margin-bottom: 12px; font-size: 14px; color: #085041; }
+    .tip-item::before { content: "💡"; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">🌿</div>
+  <a href="/dashboard" class="nav-item">🏠<span class="nav-tooltip">{{ t.dashboard_title }}</span></a>
+  <a href="/scan" class="nav-item active">📸<span class="nav-tooltip">{{ t.new_scan }}</span></a>
+  <a href="/dashboard" class="nav-item">📊<span class="nav-tooltip">{{ t.scan_history }}</span></a>
+  <a href="/shops" class="nav-item">🗺️<span class="nav-tooltip">Nearby Shops</span></a>
+  <a href="/weather" class="nav-item">🌦️<span class="nav-tooltip">Weather Alert</span></a>
+  <a href="/chatbot" class="nav-item">🤖<span class="nav-tooltip">AI Chatbot</span></a>
+  <div class="sidebar-bottom">
+    <a href="/logout" class="nav-item">🚪<span class="nav-tooltip">{{ t.logout }}</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="page-title"> {{ t.new_scan }}</div>
+    <div class="page-sub">Upload crop photo to detect disease instantly</div>
+
+    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📸</div>
+      <div class="upload-text">{{ t.upload_text }}</div>
+      <div class="upload-hint">{{ t.upload_hint }} • JPG, PNG supported</div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" capture="environment"
+           style="display:none" onchange="previewImage(this)">
+
+    <img id="preview" alt="Preview">
+
+    <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">
+      {{ t.analyze }}
+    </button>
+
+    <div class="loading" id="loading">⏳ Analyzing your crop...</div>
+
+    <div class="result-card" id="resultCard"></div>
+  </div>
+
+  <!-- Right Panel — Tips -->
+  <div class="right-panel">
+    <div class="tips-card">
+      <div class="tips-title">🌾 Scanning Tips</div>
+      <div class="tip-item">Take photo in good natural light — avoid shadows</div>
+      <div class="tip-item">Focus on the most affected leaf or part</div>
+      <div class="tip-item">Make sure the diseased area is clearly visible</div>
+      <div class="tip-item">Take multiple photos from different angles for better accuracy</div>
+      <div class="tip-item">Clean the lens before taking photo</div>
+      <div class="tip-item">Avoid blurry or dark photos</div>
+    </div>
+
+    <div class="tips-card" style="margin-top:1.5rem; background: white; border: 1.5px solid #E5E7EB;">
+      <div class="tips-title" style="color:#111827">📊 Supported Crops</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div style="font-size:13px;color:#374151">🍅 Tomato (9 diseases)</div>
+        <div style="font-size:13px;color:#374151">🥔 Potato (2 diseases)</div>
+        <div style="font-size:13px;color:#374151">🌽 Corn (3 diseases)</div>
+        <div style="font-size:13px;color:#374151">🍎 Apple (3 diseases)</div>
+        <div style="font-size:13px;color:#374151">🍇 Grape (3 diseases)</div>
+        <div style="font-size:13px;color:#374151">🫑 Pepper (1 disease)</div>
+        <div style="font-size:13px;color:#374151">🍒 Cherry (1 disease)</div>
+        <div style="font-size:13px;color:#374151">🍑 Peach (1 disease)</div>
+        <div style="font-size:13px;color:#374151">🍓 Strawberry (1 disease)</div>
+        <div style="font-size:13px;color:#374151">🍊 Orange (1 disease)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('preview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('analyzeBtn').style.display = 'block';
+    document.getElementById('resultCard').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyze() {
+  const file = document.getElementById('fileInput').files[0];
+  const btn = document.getElementById('analyzeBtn');
+  const loading = document.getElementById('loading');
+  btn.style.display = 'none';
+  loading.style.display = 'block';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await res.json();
+    loading.style.display = 'none';
+    btn.style.display = 'block';
+
+    const sev = data.severity ? data.severity.toLowerCase() : 'unknown';
+    const sevClass = sev === 'none' ? 'severity-none' : sev === 'high' ? 'severity-high' : sev === 'medium' ? 'severity-medium' : 'severity-unknown';
+
+    const card = document.getElementById('resultCard');
+    card.style.display = 'block';
+    card.innerHTML = `
+      <div class="disease-name">🔬 ${data.disease_name}</div>
+      <div>{{ t.confidence }}: <strong>${data.confidence}%</strong></div>
+      <div class="confidence-bar">
+        <div class="confidence-fill" style="width:${data.confidence}%"></div>
+      </div>
+      <span class="severity ${sevClass}">⚠️ ${data.severity}</span>
+      <div class="section-title">{{ t.symptoms }}</div>
+      <p style="font-size:14px;color:#4B5563">${data.symptoms}</p>
+      <div class="section-title">{{ t.treatment }}</div>
+      <ul class="treatment-list">
+        ${data.treatment.map(t => `<li>${t}</li>`).join('')}
+      </ul>
+      <div class="section-title">{{ t.prevention }}</div>
+      <p style="font-size:14px;color:#4B5563">${data.prevention}</p>
+      <div class="top3-card">
+        <div class="section-title" style="margin-top:0">{{ t.top3 }}</div>
+        ${data.top3.map((t,i) => `
+          <div class="top3-item">
+            <span>${i+1}. ${t.class.replace(/_/g,' ')}</span>
+            <strong>${t.confidence}%</strong>
+          </div>
+        `).join('')}
+      </div>
+      <button class="share-btn" onclick="shareResult('${data.disease_name}', '${data.confidence}')">
+        {{ t.share_whatsapp }}
+      </button>
+      <a href="/dashboard" class="back-btn">← {{ t.dashboard_title }}</a>
+    `;
+  } catch(e) {
+    loading.style.display = 'none';
+    btn.style.display = 'block';
+    alert('Error! Please try again.');
+  }
+}
+
+function shareResult(disease, confidence) {
+  const text = `🌿 AgroScan Result:\nDisease: ${disease}\nConfidence: ${confidence}%\nDetected by AgroScan AI`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+</script>
+</body>
+</html>

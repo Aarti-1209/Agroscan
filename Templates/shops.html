@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroScan - Nearby Shops</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0faf4; min-height: 100vh; display: flex; }
+    .sidebar {
+      width: 64px; background: #0F6E56; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+    }
+    .sidebar-logo { font-size: 24px; margin-bottom: 24px; }
+    .nav-item {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px; cursor: pointer; text-decoration: none;
+      color: rgba(255,255,255,0.6); font-size: 20px;
+      transition: all 0.2s; position: relative;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.15); color: white; }
+    .nav-item.active { background: rgba(255,255,255,0.25); color: white; }
+    .nav-tooltip {
+      position: absolute; left: 54px; background: #0a3d2b;
+      color: white; font-size: 11px; padding: 4px 10px;
+      border-radius: 6px; white-space: nowrap; display: none; z-index: 200;
+    }
+    .nav-item:hover .nav-tooltip { display: block; }
+    .sidebar-bottom { margin-top: auto; }
+    .main { margin-left: 64px; flex: 1; padding: 1.5rem; display: flex; gap: 1.5rem; height: 100vh; overflow: hidden; }
+    .left-panel { width: 340px; flex-shrink: 0; overflow-y: auto; padding-right: 8px; }
+    .right-panel { flex: 1; display: flex; flex-direction: column; gap: 1rem; }
+    .page-title { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #6B7280; margin-bottom: 1rem; }
+    .search-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .search-row input {
+      flex: 1; padding: 10px 12px; border: 1.5px solid #D1D5DB;
+      border-radius: 10px; font-size: 14px; outline: none;
+    }
+    .search-row input:focus { border-color: #1D9E75; }
+    .search-row button {
+      background: #1D9E75; color: white; border: none;
+      padding: 10px 14px; border-radius: 10px; font-size: 13px;
+      cursor: pointer; font-weight: 500;
+    }
+    .search-row button.dark { background: #085041; }
+    .search-row button:hover { opacity: 0.9; }
+    .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filter-btn {
+      background: white; color: #374151; border: 1.5px solid #D1D5DB;
+      padding: 5px 10px; border-radius: 20px; font-size: 11px;
+      cursor: pointer; font-weight: 500; transition: all 0.2s;
+    }
+    .filter-btn.active { background: #1D9E75; color: white; border-color: #1D9E75; }
+    .loading-box { text-align: center; padding: 1.5rem; color: #6B7280; font-size: 13px; }
+    .error-box { background: #FEE2E2; color: #DC2626; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 1rem; }
+    .shops-count { font-size: 13px; color: #6B7280; margin-bottom: 10px; font-weight: 500; }
+    .shop-card {
+      background: white; border-radius: 12px; padding: 12px 14px;
+      margin-bottom: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      transition: transform 0.15s; cursor: pointer; border: 1.5px solid transparent;
+    }
+    .shop-card:hover { transform: translateY(-1px); border-color: #1D9E75; }
+    .shop-card.selected { border-color: #1D9E75; background: #f0fdf8; }
+    .shop-name { font-size: 14px; font-weight: 600; color: #111827; }
+    .shop-address { font-size: 12px; color: #6B7280; margin-top: 3px; }
+    .shop-distance { font-size: 12px; color: #1D9E75; font-weight: 500; margin-top: 3px; }
+    .shop-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .dir-btn {
+      background: #1D9E75; color: white; border: none;
+      padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;
+    }
+    .dir-btn:hover { background: #0F6E56; }
+    .view-btn {
+      background: #F3F4F6; color: #374151; border: none;
+      padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;
+    }
+    .view-btn:hover { background: #E5E7EB; }
+    #map { flex: 1; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); z-index: 1; min-height: 400px; }
+    .map-info { background: white; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); font-size: 13px; color: #6B7280; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">🌿</div>
+  <a href="/dashboard" class="nav-item">🏠<span class="nav-tooltip">{{ t.dashboard_title }}</span></a>
+  <a href="/scan" class="nav-item">📸<span class="nav-tooltip">{{ t.new_scan }}</span></a>
+  <a href="/dashboard" class="nav-item">📊<span class="nav-tooltip">{{ t.scan_history }}</span></a>
+  <a href="/shops" class="nav-item active">🗺️<span class="nav-tooltip">Nearby Shops</span></a>
+  <a href="/weather" class="nav-item">🌦️<span class="nav-tooltip">Weather Alert</span></a>
+  <a href="/chatbot" class="nav-item">🤖<span class="nav-tooltip">AI Chatbot</span></a>
+  <div class="sidebar-bottom">
+    <a href="/logout" class="nav-item">🚪<span class="nav-tooltip">{{ t.logout }}</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Left: Shop List -->
+  <div class="left-panel">
+    <div class="page-title">🗺️ Nearby Agri Shops</div>
+    <div class="page-sub">Shops on map — click for directions</div>
+
+    <div class="search-row">
+      <input type="text" id="locationInput" placeholder="City/area..."
+        onkeydown="if(event.key==='Enter') searchShops()">
+      <button onclick="searchShops()">🔍</button>
+      <button onclick="useGPS()" class="dark">📍</button>
+    </div>
+
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter('agro', this)">🌾 Agri</button>
+      <button class="filter-btn" onclick="setFilter('pesticide', this)">🧪 Pesticide</button>
+      <button class="filter-btn" onclick="setFilter('fertilizer', this)">🌱 Fertilizer</button>
+      <button class="filter-btn" onclick="setFilter('garden_centre', this)">🏛️ Garden</button>
+      <button class="filter-btn" onclick="setFilter('seed', this)">🌰 Seeds</button>
+    </div>
+
+    <div id="shopsList">
+      <div class="loading-box">📍 Enter location or click GPS to find shops</div>
+    </div>
+  </div>
+
+  <!-- Right: Map -->
+  <div class="right-panel">
+    <div id="map"></div>
+    <div class="map-info" id="mapInfo">
+      🗺️ Map shows your location and nearby shops — click any shop card to highlight it on map
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var map = L.map('map').setView([20.5937, 78.9629], 5);
+var markersLayer = L.layerGroup().addTo(map);
+var userLat, userLng;
+var currentFilter = 'agro';
+var shopMarkers = [];
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  if (userLat) fetchShops(userLat, userLng);
+}
+
+function useGPS() {
+  if (!navigator.geolocation) { alert('Location not supported.'); return; }
+  showLoading('Getting your location...');
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      setUserMarker(userLat, userLng, 'Your Location');
+      fetchShops(userLat, userLng);
+    },
+    function() { showError('Location denied. Enter manually.'); }
+  );
+}
+
+function searchShops() {
+  var loc = document.getElementById('locationInput').value.trim();
+  if (!loc) { alert('Please enter a location!'); return; }
+  showLoading('Finding ' + loc + '...');
+  fetch('/geocode?q=' + encodeURIComponent(loc))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.length > 0) {
+        userLat = parseFloat(data[0].lat);
+        userLng = parseFloat(data[0].lon);
+        setUserMarker(userLat, userLng, loc);
+        fetchShops(userLat, userLng);
+      } else {
+        showError('Location not found. Try full name.');
+      }
+    })
+    .catch(function() { showError('Search failed. Try again.'); });
+}
+
+function setUserMarker(lat, lng, title) {
+  markersLayer.clearLayers();
+  shopMarkers = [];
+  map.setView([lat, lng], 14);
+  var userIcon = L.divIcon({ html: '<div style="background:#1D9E75;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">📍</div>', className: '', iconSize: [28, 28] });
+  L.marker([lat, lng], { icon: userIcon }).addTo(markersLayer).bindPopup('<strong>📍 ' + title + '</strong>').openPopup();
+}
+
+function fetchShops(lat, lng) {
+  fetch('/search-shops?lat=' + lat + '&lng=' + lng + '&filter=' + currentFilter)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.elements && data.elements.length > 0) {
+        displayShops(data.elements, lat, lng);
+      } else {
+        showError('No shops found. Try different filter.');
+      }
+    })
+    .catch(function() { showError('Search failed. Try again.'); });
+}
+
+function displayShops(elements, uLat, uLng) {
+  var list = document.getElementById('shopsList');
+  list.innerHTML = '<div class="shops-count">Found ' + Math.min(elements.length, 10) + ' shops nearby</div>';
+
+  elements.slice(0, 10).forEach(function(el, i) {
+    var lat = el.lat || (el.center && el.center.lat);
+    var lng = el.lon || (el.center && el.center.lon);
+    if (!lat || !lng) return;
+
+    var name = (el.tags && el.tags.name) || ('Shop ' + (i + 1));
+    var addr = (el.tags && (el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:city'])) || '';
+    var phone = (el.tags && el.tags.phone) || '';
+    var dist = getDistance(uLat, uLng, lat, lng);
+    var dirUrl = 'https://www.google.com/maps/dir/?api=1&origin=' + uLat + ',' + uLng + '&destination=' + lat + ',' + lng + '&travelmode=driving';
+    var mapsUrl = 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '&zoom=17';
+
+    // Map marker
+    var shopIcon = L.divIcon({
+      html: '<div style="background:#0F6E56;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">' + (i+1) + '</div>',
+      className: '', iconSize: [28, 28]
+    });
+    var marker = L.marker([lat, lng], { icon: shopIcon }).addTo(markersLayer);
+    marker.bindPopup('<strong>' + name + '</strong>' + (addr ? '<br>📍 ' + addr : '') + '<br>📏 ' + dist + ' km away<br><a href="' + dirUrl + '" target="_blank" style="color:#1D9E75;font-weight:500">🗺️ Get Directions</a>');
+    shopMarkers.push({ marker: marker, lat: lat, lng: lng });
+
+    // Shop card
+    var card = document.createElement('div');
+    card.className = 'shop-card';
+    card.id = 'shop-' + i;
+    card.innerHTML =
+      '<div class="shop-name">' + (i+1) + '. ' + name + '</div>' +
+      (addr ? '<div class="shop-address">📍 ' + addr + '</div>' : '') +
+      '<div class="shop-distance">📏 ' + dist + ' km away' + (phone ? ' • 📞 ' + phone : '') + '</div>' +
+      '<div class="shop-actions">' +
+        '<a href="' + dirUrl + '" target="_blank" class="dir-btn">🗺️ Directions</a>' +
+        '<a href="' + mapsUrl + '" target="_blank" class="view-btn">👁️ View</a>' +
+      '</div>';
+
+    var idx = i;
+    card.addEventListener('click', function() {
+      document.querySelectorAll('.shop-card').forEach(function(c) { c.classList.remove('selected'); });
+      card.classList.add('selected');
+      map.setView([lat, lng], 16);
+      shopMarkers[idx].marker.openPopup();
+    });
+
+    list.appendChild(card);
+  });
+}
+
+function getDistance(lat1, lng1, lat2, lng2) {
+  var R = 6371;
+  var dLat = (lat2-lat1)*Math.PI/180;
+  var dLng = (lng2-lng1)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return (R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1);
+}
+
+function showLoading(msg) {
+  document.getElementById('shopsList').innerHTML = '<div class="loading-box">⏳ ' + msg + '</div>';
+}
+
+function showError(msg) {
+  document.getElementById('shopsList').innerHTML = '<div class="error-box">❌ ' + msg + '</div>';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+instance/
+dataset/
+static/uploads/*
+training_log.txt
+*.h5
+*.zip
+.env
